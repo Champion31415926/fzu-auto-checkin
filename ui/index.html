@@ -1,0 +1,604 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>福大晚点名签到 1.1.0</title>
+  <link rel="stylesheet" href="vendor/leaflet.css" />
+  <style>
+    :root {
+      --cream: #fbf6ee;
+      --cream-deep: #f3eadc;
+      --card: #fffdf9;
+      --mint: #7ed9c3;
+      --mint-deep: #2f9d86;
+      --mint-soft: #e7f7f2;
+      --ink: #24332f;
+      --muted: #7d8d87;
+      --line: #eadfce;
+      --shadow: 0 24px 60px rgba(90, 120, 108, 0.14);
+    }
+
+    * { box-sizing: border-box; }
+    html, body { margin: 0; height: 100%; }
+    body {
+      height: 100%;
+      overflow: hidden;
+      background: var(--cream);
+      color: var(--ink);
+      font-family: "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif;
+    }
+
+    .stage { width: 100%; height: 100%; }
+
+    .window {
+      width: 100%;
+      height: 100%;
+      background: var(--card);
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+    }
+
+    header {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      padding: 22px 26px 8px;
+    }
+    .mark {
+      width: 46px;
+      height: 46px;
+      border-radius: 16px;
+      background: var(--mint-soft);
+      display: grid;
+      place-items: center;
+      flex: none;
+    }
+    h1 { margin: 0; font-size: 22px; font-weight: 700; letter-spacing: 0.02em; }
+    .sub { margin: 3px 0 0; color: var(--muted); font-size: 13px; }
+    .ver {
+      margin-left: auto;
+      color: var(--mint-deep);
+      background: var(--mint-soft);
+      border-radius: 999px;
+      padding: 6px 10px;
+      font-size: 12px;
+      font-weight: 700;
+    }
+
+    .body {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 16px;
+      padding: 4px 22px 8px;
+      flex: 1;
+      min-height: 0;
+      overflow: hidden;
+    }
+
+    .card {
+      background: #fffaf3;
+      border: 1px solid var(--line);
+      border-radius: 22px;
+      padding: 16px 16px 14px;
+    }
+    .card + .card { margin-top: 14px; }
+    .card h2 {
+      margin: 0 0 12px;
+      font-size: 13px;
+      font-weight: 700;
+      color: var(--mint-deep);
+      letter-spacing: 0.08em;
+    }
+
+    label {
+      display: block;
+      margin: 10px 0 6px;
+      font-size: 12px;
+      color: var(--muted);
+    }
+    .field {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      background: #fff;
+      border: 1px solid var(--line);
+      border-radius: 14px;
+      padding: 0 12px;
+      height: 42px;
+    }
+    .field:focus-within { border-color: var(--mint); box-shadow: 0 0 0 3px rgba(126, 217, 195, 0.35); }
+    input {
+      border: 0;
+      outline: 0;
+      width: 100%;
+      background: transparent;
+      font: inherit;
+      color: var(--ink);
+      font-size: 14px;
+    }
+    .ghost {
+      border: 0;
+      background: transparent;
+      color: var(--mint-deep);
+      font: inherit;
+      font-size: 13px;
+      font-weight: 700;
+      cursor: pointer;
+      padding: 0;
+      flex: none;
+      white-space: nowrap;
+    }
+
+    .time {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .time .field { width: 78px; justify-content: center; }
+    .time input { text-align: center; font-size: 18px; font-weight: 700; }
+    .colon { font-weight: 700; color: var(--mint-deep); }
+    .hint { margin: 8px 0 0; color: var(--muted); font-size: 12px; }
+
+    .pair { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+    .chips { display: flex; gap: 8px; margin-top: 12px; }
+    .chip {
+      border: 1px solid var(--line);
+      background: #fff;
+      color: var(--ink);
+      border-radius: 999px;
+      padding: 8px 12px;
+      font: inherit;
+      font-size: 13px;
+      cursor: pointer;
+    }
+    .chip:hover { border-color: var(--mint); background: var(--mint-soft); }
+
+    .wechat p { margin: 0; font-size: 16px; font-weight: 700; line-height: 1.45; }
+    .wechat .quiet { margin-top: 6px; color: var(--muted); font-size: 12px; font-weight: 400; }
+    .wechat .actions { flex-direction: row; align-items: center; }
+    .wechat .actions .secondary { flex: 1; }
+
+    .actions { display: flex; flex-direction: column; gap: 10px; margin-top: 14px; }
+    .primary, .secondary {
+      height: 46px;
+      border-radius: 16px;
+      border: 0;
+      font: inherit;
+      font-size: 15px;
+      font-weight: 700;
+      cursor: pointer;
+    }
+    .primary { background: var(--mint-deep); color: white; }
+    .primary:hover { filter: brightness(1.05); }
+    .secondary { background: var(--mint-soft); color: var(--mint-deep); }
+    .links { display: flex; gap: 14px; }
+    .links button { color: var(--muted); font-weight: 600; }
+
+    footer {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 8px 26px 18px;
+      color: var(--muted);
+      font-size: 12px;
+    }
+    .dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: var(--mint);
+      flex: none;
+    }
+    #status { color: var(--ink); }
+
+    .mask {
+      position: fixed;
+      inset: 0;
+      background: rgba(36, 51, 47, 0.28);
+      display: none;
+      place-items: center;
+      padding: 20px;
+    }
+    .mask.show { display: grid; }
+    .dialog {
+      width: min(420px, 100%);
+      background: var(--card);
+      border-radius: 28px;
+      padding: 22px;
+      box-shadow: var(--shadow);
+    }
+    .dialog h3 { margin: 0 0 6px; font-size: 18px; }
+    .dialog .quiet { margin: 0 0 14px; color: var(--muted); font-size: 13px; line-height: 1.5; }
+    .qr {
+      min-height: 240px;
+      border-radius: 22px;
+      background: #fff;
+      border: 1px solid var(--line);
+      display: grid;
+      place-items: center;
+      text-align: center;
+      color: var(--mint-deep);
+      font-weight: 700;
+      padding: 12px;
+    }
+    .qr img {
+      width: 220px;
+      height: 220px;
+      object-fit: contain;
+      background: #fff;
+    }
+    #qr-wait { color: var(--muted); font-weight: 500; font-size: 13px; }
+    #qr-img[hidden], #qr-wait[hidden] { display: none !important; }
+    #map-box {
+      height: 240px;
+      border-radius: 22px;
+      overflow: hidden;
+      background: var(--mint-soft);
+    }
+    .road {
+      position: absolute;
+      background: rgba(255, 255, 255, 0.85);
+    }
+    .road.h { left: 8%; right: 10%; top: 48%; height: 10px; border-radius: 8px; }
+    .road.v { top: 12%; bottom: 16%; left: 46%; width: 10px; border-radius: 8px; }
+    .pin {
+      position: absolute;
+      left: 46%;
+      top: 42%;
+      width: 18px;
+      height: 18px;
+      border-radius: 50% 50% 50% 0;
+      background: var(--mint-deep);
+      transform: translate(-50%, -100%) rotate(-45deg);
+    }
+    .dialog .primary, .dialog .secondary { width: 100%; margin-top: 12px; }
+    .close {
+      float: right;
+      border: 0;
+      background: var(--cream-deep);
+      width: 32px;
+      height: 32px;
+      border-radius: 50%;
+      cursor: pointer;
+      color: var(--ink);
+    }
+
+  </style>
+</head>
+<body>
+  <div class="stage">
+    <section class="window" aria-label="福大晚点名签到">
+      <header>
+        <div class="mark" aria-hidden="true">
+          <svg width="26" height="26" viewBox="0 0 26 26" fill="none">
+            <path d="M13 22c5 0 8-3.4 8-7.6C21 9.2 16.2 4 13 4S5 9.2 5 14.4C5 18.6 8 22 13 22Z" fill="#7ED9C3"/>
+            <path d="M13 22c2.2-2.4 3.2-4.6 3.2-7.2 0-2.2-1-4.2-3.2-6.4-2.2 2.2-3.2 4.2-3.2 6.4 0 2.6 1 4.8 3.2 7.2Z" fill="#2F9D86"/>
+          </svg>
+        </div>
+        <div>
+          <h1>福大晚点名</h1>
+          <p class="sub">今晚的签到，交给我吧</p>
+        </div>
+        <div class="ver">1.1.0</div>
+      </header>
+
+      <div class="body">
+        <div>
+          <section class="card">
+            <h2>账号</h2>
+            <label for="user">学号</label>
+            <div class="field"><input id="user" placeholder="请输入学号" /></div>
+            <label for="pass">密码</label>
+            <div class="field">
+              <input id="pass" type="password" placeholder="统一身份认证密码" />
+              <button class="ghost" id="peek" type="button">显示</button>
+            </div>
+          </section>
+
+          <section class="card">
+            <h2>时间</h2>
+            <div class="time">
+              <div class="field"><input id="hour" value="21" inputmode="numeric" /></div>
+              <span class="colon">:</span>
+              <div class="field"><input id="minute" value="30" inputmode="numeric" /></div>
+            </div>
+            <p class="hint">时间一到我就去签，没签上会一直试到 23:59。</p>
+          </section>
+
+          <div class="actions">
+            <button class="primary" id="save" type="button">保存并创建计划任务</button>
+            <button class="secondary" id="test" type="button">立即试签一次</button>
+            <div class="links">
+              <button class="ghost" id="cancel" type="button">取消计划任务</button>
+              <button class="ghost" id="logs" type="button">打开日志</button>
+            </div>
+          </div>
+        </div>
+
+        <div>
+          <section class="card">
+            <h2>位置</h2>
+            <label for="addr">签到地址</label>
+            <div class="field"><input id="addr" value="旗山校区 学府北路10-165号" /></div>
+            <div class="pair">
+              <div>
+                <label for="lon">经度</label>
+                <div class="field"><input id="lon" value="119.188916" /></div>
+              </div>
+              <div>
+                <label for="lat">纬度</label>
+                <div class="field"><input id="lat" value="26.058772" /></div>
+              </div>
+            </div>
+            <div class="chips">
+              <button class="chip" id="qishan" type="button">旗山校区</button>
+              <button class="chip" id="map" type="button">在地图上选</button>
+            </div>
+          </section>
+
+          <section class="card wechat">
+            <h2>微信</h2>
+            <p>想知道签到上了没？</p>
+            <p class="quiet">把「方糖」请到微信里，签完我告诉你。</p>
+            <div class="actions">
+              <button class="secondary" id="bind" type="button">绑定微信</button>
+              <button class="ghost" id="try-push" type="button">试发一条</button>
+            </div>
+            <label for="key">SendKey</label>
+            <div class="field"><input id="key" placeholder="扫码后把 SCT 开头的密钥贴在这里" /></div>
+          </section>
+        </div>
+      </div>
+
+      <footer>
+        <span class="dot"></span>
+        <span id="status">准备好了</span>
+      </footer>
+    </section>
+  </div>
+
+  <div class="mask" id="bind-mask">
+    <div class="dialog" role="dialog" aria-labelledby="bind-title">
+      <button class="close" data-close type="button" aria-label="关闭">×</button>
+      <h3 id="bind-title">绑定微信</h3>
+      <p class="quiet">用微信扫下面的登录码，关注「方糖」。扫完并在微信里点确认后，SendKey 会自动填回来。</p>
+      <div class="qr" id="qr-box">
+        <img id="qr-img" alt="登录二维码" hidden />
+        <span id="qr-wait">正在取登录二维码…</span>
+      </div>
+      <button class="secondary" id="qr-refresh" type="button">换一张</button>
+      <label for="key2">SendKey</label>
+      <div class="field"><input id="key2" placeholder="SCT 开头" /></div>
+      <button class="primary" id="bind-ok" type="button">我已复制，填回去</button>
+    </div>
+  </div>
+
+  <div class="mask" id="map-mask">
+    <div class="dialog" role="dialog" aria-labelledby="map-title">
+      <button class="close" data-close type="button" aria-label="关闭">×</button>
+      <h3 id="map-title">在地图上选点</h3>
+      <p class="quiet">点一下地图，针落到哪就用哪。这是高德坐标，和签到接口同一套。</p>
+      <div id="map-box"></div>
+      <p class="quiet" id="pick-text">还没选新的点</p>
+      <button class="primary" id="map-ok" type="button">就用这里</button>
+    </div>
+  </div>
+
+  <div class="mask" id="sms-mask">
+    <div class="dialog" role="dialog" aria-labelledby="sms-title">
+      <h3 id="sms-title">短信验证码</h3>
+      <p class="quiet" id="sms-tip">验证码已发送</p>
+      <div class="field"><input id="sms-code" placeholder="填写收到的验证码" /></div>
+      <button class="primary" id="sms-ok" type="button">确定</button>
+    </div>
+  </div>
+
+  <script src="vendor/leaflet.js"></script>
+  <script>
+    const status = document.getElementById("status");
+    const say = (text) => { status.textContent = text; };
+    const api = () => (window.pywebview && window.pywebview.api) || null;
+
+    function values() {
+      return {
+        username: document.getElementById("user").value,
+        password: document.getElementById("pass").value,
+        hour: document.getElementById("hour").value,
+        minute: document.getElementById("minute").value,
+        address: document.getElementById("addr").value,
+        lon: document.getElementById("lon").value,
+        lat: document.getElementById("lat").value,
+        sendkey: document.getElementById("key").value,
+      };
+    }
+
+    function fill(state) {
+      if (!state) return;
+      document.getElementById("user").value = state.username || "";
+      document.getElementById("pass").value = state.password || "";
+      document.getElementById("hour").value = state.hour ?? 21;
+      document.getElementById("minute").value = state.minute ?? "30";
+      document.getElementById("addr").value = state.address || "";
+      document.getElementById("lon").value = state.lon ?? "";
+      document.getElementById("lat").value = state.lat ?? "";
+      document.getElementById("key").value = state.sendkey || "";
+      if (state.task) say("计划任务已创建");
+    }
+
+    document.getElementById("peek").onclick = () => {
+      const input = document.getElementById("pass");
+      const show = input.type === "password";
+      input.type = show ? "text" : "password";
+      document.getElementById("peek").textContent = show ? "隐藏" : "显示";
+    };
+
+    document.getElementById("qishan").onclick = () => {
+      document.getElementById("addr").value = "旗山校区 学府北路10-165号";
+      document.getElementById("lon").value = "119.188916";
+      document.getElementById("lat").value = "26.058772";
+      say("已填入旗山校区默认位置");
+    };
+
+    const open = (id) => document.getElementById(id).classList.add("show");
+    let bindPoll = 0;
+    const stopBindPoll = () => { if (bindPoll) { clearTimeout(bindPoll); bindPoll = 0; } };
+    const closeAll = () => {
+      stopBindPoll();
+      document.querySelectorAll(".mask").forEach((el) => el.classList.remove("show"));
+    };
+    document.querySelectorAll("[data-close]").forEach((btn) => { btn.onclick = closeAll; });
+    document.querySelectorAll(".mask").forEach((mask) => {
+      mask.onclick = (event) => { if (event.target === mask) closeAll(); };
+    });
+
+    async function showLoginQr() {
+      const img = document.getElementById("qr-img");
+      const wait = document.getElementById("qr-wait");
+      const bridge = api();
+      img.hidden = true;
+      wait.hidden = false;
+      wait.textContent = "正在取登录二维码…";
+      if (!bridge) {
+        wait.textContent = "请在程序窗口里打开，才能显示二维码";
+        return;
+      }
+      try {
+        const qr = await bridge.refresh_qr();
+        img.src = qr.image;
+        img.hidden = false;
+        wait.hidden = true;
+      } catch (err) {
+        wait.textContent = String(err);
+      }
+    }
+
+    function watchScan() {
+      stopBindPoll();
+      const tick = async () => {
+        if (!document.getElementById("bind-mask").classList.contains("show")) return;
+        const bridge = api();
+        if (!bridge) return;
+        try {
+          const result = await bridge.confirm_scan();
+          if (result && result.ok && result.sendkey) {
+            document.getElementById("key").value = result.sendkey;
+            document.getElementById("key2").value = result.sendkey;
+            closeAll();
+            say("SendKey 已填好，记得点保存");
+            return;
+          }
+        } catch (err) {
+          /* 还没扫上就继续等 */
+        }
+        bindPoll = setTimeout(tick, 2000);
+      };
+      bindPoll = setTimeout(tick, 2000);
+    }
+
+    document.getElementById("bind").onclick = () => {
+      open("bind-mask");
+      showLoginQr();
+      watchScan();
+    };
+    document.getElementById("qr-refresh").onclick = () => showLoginQr();
+
+    document.getElementById("bind-ok").onclick = () => {
+      const value = document.getElementById("key2").value.trim();
+      if (value) document.getElementById("key").value = value;
+      closeAll();
+      say(value ? "SendKey 已填回来，记得点保存" : "还没有填写 SendKey");
+    };
+
+    document.getElementById("try-push").onclick = async () => {
+      const bridge = api();
+      if (!bridge) { say("请在程序窗口里试发"); return; }
+      say("正在发一条测试…");
+      try {
+        const result = await bridge.test_push(document.getElementById("key").value);
+        say(result.message || "已发送");
+      } catch (err) {
+        say(String(err));
+      }
+    };
+
+    let map;
+    let marker;
+    let picked = null;
+    function initMap() {
+      const lon = parseFloat(document.getElementById("lon").value) || 119.188916;
+      const lat = parseFloat(document.getElementById("lat").value) || 26.058772;
+        if (!map) {
+          L.Icon.Default.imagePath = "vendor/images/";
+          map = L.map("map-box", { zoomControl: true }).setView([lat, lon], 16);
+        L.tileLayer("https://webrd0{s}.is.autonavi.com/appmaptile?lang=zh_cn&size=1&scale=1&style=8&x={x}&y={y}&z={z}", {
+          subdomains: "1234",
+          maxZoom: 18,
+        }).addTo(map);
+        marker = L.marker([lat, lon]).addTo(map);
+        map.on("click", (event) => {
+          picked = event.latlng;
+          marker.setLatLng(picked);
+          document.getElementById("pick-text").textContent =
+            "经度 " + picked.lng.toFixed(6) + "  纬度 " + picked.lat.toFixed(6);
+        });
+      } else {
+        map.invalidateSize();
+        map.setView([lat, lon], map.getZoom());
+        marker.setLatLng([lat, lon]);
+      }
+      picked = null;
+      document.getElementById("pick-text").textContent = "点一下地图选位置";
+    }
+
+    document.getElementById("map").onclick = () => {
+      open("map-mask");
+      setTimeout(initMap, 60);
+    };
+
+    document.getElementById("map-ok").onclick = () => {
+      if (!picked) { say("先在地图上点一个位置"); return; }
+      document.getElementById("lon").value = picked.lng.toFixed(6);
+      document.getElementById("lat").value = picked.lat.toFixed(6);
+      closeAll();
+      say("已填入地图上的坐标，地址还可以自己改");
+    };
+
+    window.askSmsCode = (phone, tip) => {
+      document.getElementById("sms-tip").textContent = "验证码已发到 " + phone + (tip ? "\n" + tip : "");
+      document.getElementById("sms-code").value = "";
+      open("sms-mask");
+      document.getElementById("sms-code").focus();
+    };
+
+    document.getElementById("sms-ok").onclick = async () => {
+      const code = document.getElementById("sms-code").value.trim();
+      closeAll();
+      const bridge = api();
+      if (bridge) await bridge.submit_sms(code);
+    };
+
+    async function run(label, action) {
+      const bridge = api();
+      if (!bridge) { say("请在程序窗口里操作"); return; }
+      say(label);
+      try {
+        const result = await action(bridge);
+        say((result && result.message) || "完成");
+      } catch (err) {
+        say(String(err));
+      }
+    }
+
+    document.getElementById("save").onclick = () => run("正在保存…", (bridge) => bridge.save(values()));
+    document.getElementById("test").onclick = () => run("正在试签，请稍候…", (bridge) => bridge.test_sign(values()));
+    document.getElementById("cancel").onclick = () => run("正在取消…", (bridge) => bridge.cancel_task());
+    document.getElementById("logs").onclick = () => run("正在打开日志…", (bridge) => bridge.open_logs());
+
+    window.addEventListener("pywebviewready", async () => {
+      try { fill(await api().get_state()); } catch (err) { say(String(err)); }
+    });
+  </script>
+</body>
+</html>
